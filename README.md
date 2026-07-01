@@ -22,6 +22,17 @@ ClojureScript / SCI / GraalVM.
 > tokenization layer must replace them in any real system; this library
 > never persists raw PANs.
 
+
+## Maturity
+
+| | |
+|---|---|
+| Role | capability |
+| Tests | 51 assertions, all green |
+| Operator console (UI/UX) | yes |
+| Export (CSV/JSON) | yes |
+| Shared CSS design system | yes (css.core/operator-theme) |
+
 ## Contract
 
 ```clojure
