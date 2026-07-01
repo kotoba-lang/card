@@ -9,23 +9,11 @@
             [css.core :as css]
             [kotoba.card :as card]))
 
-(def ^:private sheet
-  {:rules
-   {"body" {:font-family "system-ui,-apple-system,sans-serif" :margin 0 :color "#1a1a1a" :background "#fafafa"}
-    "header.bar" {:display :flex :align-items :center :gap 12 :padding "12px 20px" :background "#fff" :border-bottom "1px solid #e5e5e5"}
-    "header.bar h1" {:font-size 18 :margin 0 :font-weight 600}
-    "header.bar .badge" {:margin-left :auto :font-size 12 :color "#666"}
-    "main" {:max-width 980 :margin "24px auto" :padding "0 20px"}
-    ".card" {:background "#fff" :border "1px solid #e5e5e5" :border-radius 8 :padding 16 :margin-bottom 16}
-    "h2" {:margin-top 0 :font-size 15}
-    "table" {:width "100%" :border-collapse :collapse :font-size 14}
-    "th, td" {:text-align :left :padding "8px 10px" :border-bottom "1px solid #f0f0f0"}
-    "th" {:font-weight 600 :color "#555" :font-size 12 :text-transform :uppercase :letter-spacing "0.04em"}
-    "td.amt" {:font-variant-numeric :tabular-nums :text-align :right}
-    ".ok" {:color "#137a3f"}
-    ".warn" {:color "#b25c00" :background "#fff8e1" :padding "2px 6px" :border-radius 4}
-    ".err" {:color "#b3261e" :background "#fbe9e7" :padding "2px 6px" :border-radius 4}
-    ".muted" {:color "#888"}}})
+;; Domain-specific rules layered on top of the shared operator-theme (css.core).
+(def ^:private extra-rules
+  {})
+
+(def ^:private sheet (css/merge-theme extra-rules))
 
 (defn- stylesheet [] (html/->html (css/style-node sheet)))
 
