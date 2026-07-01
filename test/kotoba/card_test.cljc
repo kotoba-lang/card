@@ -76,3 +76,18 @@
 (deftest validate-message-test
   (is (true? (:card/valid? (card/validate-message (card/message "0100" {2 visa-pan})))))
   (is (= :not-a-map (:card/error (card/validate-message "x")))))
+
+(deftest pan-edge-cases
+  (testing "12-digit minimum length is accepted when Luhn-valid"
+    (is (card/pan-valid? "412345678913")))
+  (testing "too short (<12 digits) is rejected"
+    (is (not (card/pan-valid? "41111111111"))))
+  (testing "too long (>19 digits) is rejected"
+    (is (not (card/pan-valid? "41111111111111111111111"))))
+  (testing "non-string is rejected"
+    (is (not (card/pan-valid? 42))))
+  (testing "checksum error is distinguished from wrong length"
+    (let [r (card/validate-pan "4111111111111112")]
+      (is (= :bad-checksum (:card/error r))))
+    (let [r (card/validate-pan "411")]
+      (is (= :wrong-length (:card/error r))))))
