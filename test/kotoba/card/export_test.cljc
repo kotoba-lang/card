@@ -7,6 +7,16 @@
   (let [csv (ex/pans->csv ["4111111111111111" "bad"])]
     (is (re-find #"pan_masked,valid,network,error" csv))
     (is (re-find #"•••• 1111,yes,visa" csv))))
+(deftest csv-export-quotes-a-bare-carriage-return
+  ;; RFC 4180 requires quoting a field containing CR, LF, or a comma --
+  ;; \r alone is also a line terminator every standard CSV reader
+  ;; recognizes, but the check here only ever covered \n. Verified
+  ;; against Python's csv module: an unquoted bare \r split the row into
+  ;; two corrupted rows on read-back.
+  (let [a [(card/authorization "4111111111111111" 1000 :approve
+             :rrn (str "ref" (char 13) "note"))]
+        csv (ex/authorizations->csv a)]
+    (is (str/includes? csv "\"ref\rnote\""))))
 (deftest json-export
   (let [j (ex/pans->json ["4111111111111111"])]
     (is (re-find #"\"pan_masked\":\"•••• 1111\"" j))
