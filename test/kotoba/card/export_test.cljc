@@ -1,5 +1,6 @@
 (ns kotoba.card.export-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [clojure.string :as str]
+            [clojure.test :refer [deftest is testing]]
             [kotoba.card :as card]
             [kotoba.card.export :as ex]))
 (deftest csv-export
@@ -10,3 +11,13 @@
   (let [j (ex/pans->json ["4111111111111111"])]
     (is (re-find #"\"pan_masked\":\"•••• 1111\"" j))
     (is (re-find #"\"valid\":true" j))))
+(deftest json-export-escapes-every-c0-control-character
+  ;; RFC 8259 requires EVERY control character U+0000-U+001F to be
+  ;; escaped, not just \ " and \n -- an operator-supplied rrn field
+  ;; containing a raw tab or other control byte would otherwise be
+  ;; copied through raw, producing invalid JSON (verified against
+  ;; Python's strict json module).
+  (let [a [(card/authorization "4111111111111111" 1000 :approve
+             :rrn (str "ref" (char 9) "123" (char 1) "x"))]
+        j (ex/authorizations->json a)]
+    (is (str/includes? j "\"rrn\":\"ref\\t123\\u0001x\""))))
