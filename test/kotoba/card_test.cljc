@@ -78,8 +78,13 @@
   (is (= :not-a-map (:card/error (card/validate-message "x")))))
 
 (deftest pan-edge-cases
-  (testing "12-digit minimum length is accepted when Luhn-valid"
-    (is (card/pan-valid? "412345678913")))
+  (testing "13 digits (Visa's true minimum declared length) is accepted when Luhn-valid"
+    (is (card/pan-valid? "4111111111119")))
+  (testing "12 digits is below every known network's minimum declared length,
+            even though it's within the overall 12..19 structural bound and
+            Luhn-valid -- :unknown-network, not accepted"
+    (is (not (card/pan-valid? "412345678913")))
+    (is (= :unknown-network (:card/error (card/validate-pan "412345678913")))))
   (testing "too short (<12 digits) is rejected"
     (is (not (card/pan-valid? "41111111111"))))
   (testing "too long (>19 digits) is rejected"
@@ -91,3 +96,16 @@
       (is (= :bad-checksum (:card/error r))))
     (let [r (card/validate-pan "411")]
       (is (= :wrong-length (:card/error r))))))
+
+(deftest network-of-enforces-per-network-declared-length
+  (testing "a PAN within the overall 12..19 structural bound, with a Luhn-valid
+            checksum and a known network's IIN prefix, is still rejected when
+            its length doesn't match that specific network's declared valid
+            lengths (Discover's #{16 19}, NOT 17) -- regression for a typo bug
+            where the length check destructured :length (always nil, since
+            iin-ranges only ever has :lengths) instead of :lengths, silently
+            disabling all per-network length enforcement"
+    (is (not (card/pan-valid? "60110000000000001")) "17-digit Discover-prefixed, wrong length")
+    (is (= :unknown-network (:card/error (card/validate-pan "60110000000000001"))))
+    (is (card/pan-valid? "6011000000000004") "16 digits IS a valid Discover length")
+    (is (card/pan-valid? "6011000000000000001") "19 digits IS also a valid Discover length")))

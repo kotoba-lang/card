@@ -64,11 +64,12 @@
 
 (defn- network-of
   "Return the card network keyword for a digit string, or nil when no
-  known IIN prefix matches."
+  known IIN prefix matches AND the digit string's length is one of that
+  network's declared valid lengths."
   [d]
-  (some (fn [{:keys [prefix length] :as r}]
+  (some (fn [{:keys [prefix lengths] :as r}]
           (when (and (str/starts-with? d prefix)
-                     (or (nil? length) (contains? (:lengths r) (count d))))
+                     (contains? lengths (count d)))
             (:network r)))
         (sort-by (comp count :prefix) iin-ranges)))
 
