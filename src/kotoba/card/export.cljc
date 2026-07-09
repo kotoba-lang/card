@@ -10,7 +10,13 @@
 
 (defn- csv-cell [v]
   (let [s (str (if (nil? v) "" v))]
-    (if (re-find #"[\",\n]" s)
+    ;; RFC 4180 requires quoting a field containing a comma, a double
+    ;; quote, OR a line break -- \r alone is also a line break (a CR-only
+    ;; row terminator every standard CSV reader recognizes), but the
+    ;; check here only ever covered \n. A field containing a bare \r
+    ;; (verified against Python's csv module) silently split into two
+    ;; corrupted rows on read-back instead of round-tripping as one.
+    (if (re-find #"[\",\n\r]" s)
       (str "\"" (str/replace s "\"" "\"\"") "\"")
       s)))
 
