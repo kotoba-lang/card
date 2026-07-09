@@ -16,11 +16,28 @@
 
 (defn- csv-row [vals] (str/join "," (map csv-cell vals)))
 
+(def ^:private json-hex-digits "0123456789abcdef")
+
+(defn- json-hex4
+  "4-digit hex for a JSON `\\uXXXX` escape (portable: bit ops + a lookup
+  table, no Long/Integer interop that would only work on :clj)."
+  [n]
+  (apply str (for [shift [12 8 4 0]] (nth json-hex-digits (bit-and (bit-shift-right n shift) 0xf)))))
+
+(def ^:private json-string-escapes
+  "RFC 8259 §7: EVERY control character U+0000-U+001F must be escaped in
+  a JSON string, not just \\ \" and \\n -- an operator-supplied field
+  containing a raw \\t, \\r, or other control byte would otherwise be
+  copied through raw, producing invalid JSON (verified against Python's
+  strict json module)."
+  (into {\" "\\\"" \\ "\\\\"}
+        (for [i (range 0x20)]
+          [(char i) (case i
+                      8 "\\b" 9 "\\t" 10 "\\n" 12 "\\f" 13 "\\r"
+                      (str "\\u" (json-hex4 i)))])))
+
 (defn- json-str [v]
-  (-> (str (if (nil? v) "" v))
-      (str/replace "\\" "\\\\")
-      (str/replace "\"" "\\\"")
-      (str/replace "\n" "\\n")))
+  (str/escape (str (if (nil? v) "" v)) json-string-escapes))
 
 (defn- mask [pan]
   (let [d (str (or pan "")) n (count d)]
