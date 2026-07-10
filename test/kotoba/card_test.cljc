@@ -55,15 +55,32 @@
   (testing "approve records full amount"
     (let [a (card/authorization visa-pan 1999 :approve :currency "USD")]
       (is (card/approved? a))
-      (is (= 1999 (card/authorized-amount a)))))
+      (is (= 1999 (card/authorized-amount a)))
+      (is (= 1999 (:card/approved a)))))
   (testing "partial approve records granted amount"
     (let [a (card/authorization visa-pan 1999 :partial-approve :approved 1000)]
       (is (card/approved? a))
-      (is (= 1000 (card/authorized-amount a)))))
+      (is (= 1000 (card/authorized-amount a)))
+      (is (= 1000 (:card/approved a)))))
   (testing "decline authorizes zero"
     (let [a (card/authorization visa-pan 1999 :decline :reason :insufficient)]
       (is (not (card/approved? a)))
-      (is (zero? (card/authorized-amount a)))))
+      (is (zero? (card/authorized-amount a)))
+      (is (zero? (:card/approved a))
+          "the raw :card/approved field itself must be 0, not the requested amount --
+           a settlement/reconciliation consumer outside this repo may read this field
+           directly instead of going through authorized-amount")))
+  (testing "refer authorizes zero"
+    (let [a (card/authorization visa-pan 5000 :refer)]
+      (is (not (card/approved? a)))
+      (is (zero? (:card/approved a))
+          "refer must not silently record the full requested amount as approved")))
+  (testing "capture defaults to zero approved unless explicitly overridden"
+    (let [a (card/authorization visa-pan 1999 :capture)]
+      (is (zero? (:card/approved a)))))
+  (testing "explicit :approved override is always honored regardless of action"
+    (let [a (card/authorization visa-pan 1999 :decline :approved 0 :reason :fraud)]
+      (is (zero? (:card/approved a)))))
   (testing "unknown action returns nil"
     (is (nil? (card/authorization visa-pan 1999 :frob))))
   (testing "invalid PAN returns nil"
