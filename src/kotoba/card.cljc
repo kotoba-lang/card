@@ -134,6 +134,13 @@
   "Permitted authorization actions a card-processing governor may take."
   #{:approve :decline :refer :partial-approve :capture})
 
+(def ^:private approving-actions
+  "Actions that actually grant funds — the only actions whose :card/approved
+  should default to the full requested amount. A :decline/:refer/:capture
+  record must default to 0 approved (nothing was granted) unless the caller
+  explicitly overrides it via :approved."
+  #{:approve :partial-approve})
+
 (defn authorization
   "Construct an authorization decision record. action is one of
   :approve/:decline/:refer/:partial-approve/:capture. Returns nil for an
@@ -145,7 +152,7 @@
             :card/amount   amount
             :card/currency (or currency "USD")
             :card/action   action
-            :card/approved (or approved amount)
+            :card/approved (or approved (when (contains? approving-actions action) amount) 0)
             :card/rrn      rrn
             :card/reason   reason}
            (dissoc opts :currency :approved :rrn :reason))))
@@ -153,7 +160,7 @@
 (defn approved?
   "True when an authorization record approved (full or partial)."
   [auth]
-  (contains? #{:approve :partial-approve} (:card/action auth)))
+  (contains? approving-actions (:card/action auth)))
 
 (defn authorized-amount
   "Return the amount a governor actually approved, or 0 for a decline/refer."
