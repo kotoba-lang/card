@@ -28,7 +28,11 @@ ClojureScript / SCI / GraalVM.
 | | |
 |---|---|
 | Role | capability |
-| Tests | 51 assertions, all green |
+| Tests | 29 tests / 163 assertions, all green (`clojure -M:test`) |
+| Records (PAN / ISO 8583 / authorization) | yes |
+| Issuer-side lifecycle state machine | yes (`kotoba.card.lifecycle`) |
+| Issuer-side host ports | yes (`kotoba.card.ports`) |
+| Acquirer-side ports | no — deliberately, see below |
 | Operator console (UI/UX) | yes |
 | Export (CSV/JSON) | yes |
 | Shared CSS design system | yes (css.core/operator-theme) |
@@ -45,6 +49,86 @@ ClojureScript / SCI / GraalVM.
 (card/authorization "4111111111111111" 1999 :partial-approve :approved 1000)
 (card/validate-pan "4111111111111112")        ; => {:card/valid? false :card/error :bad-checksum}
 ```
+
+## Card lifecycle (`kotoba.card.lifecycle`)
+
+A **pure state machine** so that *is this lifecycle transition even reachable
+from the state we have on record?* is answered by a total, deterministic
+function — no I/O, no model, no policy. It is the intended callee of a consent
+surface's pre-check, which must reject an unreachable transition *before* any
+human approval is requested. Same posture as
+[`kotoba.esim.lifecycle`](https://github.com/kotoba-lang/esim).
+
+```
+:issued --activate--> :active --block--> :blocked
+   |                     |  ^               |
+   |                     |  +---activate----+      (unblocking IS activation)
+   |                  reissue                      :reissued  (terminal)
+   +---------close-------+---------close-----------> :closed   (terminal)
+```
+
+The four events are exactly the vocabulary the issuer side already uses
+(`cloud-itonami-card-issuing`'s `:card/lifecycle` accepts
+`#{:activate :block :reissue :close}`); this namespace adds the reachability the
+issuer side had no answer for and invents no new event names.
+
+```clojure
+(require '[kotoba.card.lifecycle :as lc])
+
+(lc/reachable? :blocked :activate)   ; => true  — unblocking is activation
+(lc/reachable? :reissued :close)     ; => false
+(lc/describe :reissued :close)
+;=> "close: refused from reissued (reachable from active, blocked, issued)"
+```
+
+Two rules are decisions rather than transcriptions, and are documented as such:
+
+- **`:activate` is admitted from `:blocked`.** There is no `:unblock` event,
+  because inventing one would add a name the issuer side does not use and would
+  then need translating back at the boundary.
+- **`:close` is refused from `:reissued`.** The reference is already terminal
+  there; closing it again would put two terminal records against one card
+  reference. The successor card is what gets closed.
+
+`apply-event` is total, returns data, never throws, and every refusal carries a
+reason a governor can cite. A `:reissue` reports `:card/successor
+:not-created-here` — issuing the replacement is a separate `:card/issue`
+decision, because a reissue that silently minted a new card would hide an
+issuance behind a lifecycle event.
+
+## Issuer-side ports (`kotoba.card.ports`)
+
+Protocols a host implements; the host — a governed actor such as
+[`cloud-itonami-card-issuing`](https://github.com/cloud-itonami/cloud-itonami-card-issuing)
+— injects the real scheme/processor connection, or fixtures offline. Modeled on
+[`kotoba-lang/koe`](https://github.com/kotoba-lang/koe)'s voice ports.
+
+| Protocol | Operation vocabulary |
+|---|---|
+| `ICardholderProvisioning` | `:cardholder/intake` |
+| `ICardProgram` | `:bin/assess`, `:bin/sponsor` |
+| `ICardIssuance` | `:card/issue`, `:card/lifecycle` |
+| `IAuthorizationDecision` | `:authorization/decide` |
+| `IDisputeInitiation` | `:dispute/initiate` |
+
+> **Every operation is propose-only.** An implementation returns a proposal
+> record for a governor and a human to decide on; it does not sponsor a real
+> BIN, issue a real card, move real funds or file a real chargeback. That is the
+> containment the issuer-side actor is built around, made structural here so a
+> caller cannot mistake a port for an actuator.
+
+The split is load-bearing, not decorative — the contract test asserts a host can
+implement `IAuthorizationDecision` **without** thereby gaining the ability to
+propose issuing a card or sponsoring a BIN. Authorization is the only hot path
+(per transaction, latency-bound, available independently of issuance), and BIN
+sponsorship is a once-per-program licensing act.
+
+**Acquirer-side ports are deliberately absent.** Chargeback hold release and
+settlement finalization belong to
+[`cloud-itonami-isic-6619`](https://github.com/cloud-itonami/cloud-itonami-isic-6619).
+One actor holding both sides of a dispute is the conflict of interest the split
+exists to prevent. No SDK, endpoint, scheme membership, HSM handle or credential
+lives in this library.
 
 ## Operator console (UI/UX)
 
