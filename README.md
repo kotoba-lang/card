@@ -28,10 +28,11 @@ ClojureScript / SCI / GraalVM.
 | | |
 |---|---|
 | Role | capability |
-| Tests | 33 tests / 196 assertions, all green (`clojure -M:test`) |
+| Tests | 41 tests / 233 assertions, all green (`clojure -M:test`) |
 | Records (PAN / ISO 8583 / authorization) | yes |
 | Issuer-side lifecycle state machine | yes (`kotoba.card.lifecycle`) — mirrors the issuer governor's own allowlist |
-| Issuer-side host ports | yes (`kotoba.card.ports`) |
+| Issuer-side host ports (propose-only) | yes (`kotoba.card.ports`) |
+| Post-approval actuation contract | yes (`kotoba.card.actuation`) |
 | Acquirer-side ports | no — deliberately, see below |
 | Operator console (UI/UX) | yes |
 | Export (CSV/JSON) | yes |
@@ -138,6 +139,44 @@ settlement finalization belong to
 One actor holding both sides of a dispute is the conflict of interest the split
 exists to prevent. No SDK, endpoint, scheme membership, HSM handle or credential
 lives in this library.
+
+## After a decision: `kotoba.card.actuation`
+
+`kotoba.card.ports` is **propose-only** and says so — a host that actuates inside
+one of those methods has moved a licensed act behind an interface that reads as a
+query. That leaves a hole: once a governor has cleared a proposal and a licensed
+operator has approved it, something has to actually issue the card.
+
+`kotoba.card.actuation` is that something, and it is a **separate protocol** so the
+difference is visible at the call site rather than only in a docstring:
+`ports/issue-card` drafts, `actuation/issue-card!` does. A test asserts a
+propose-only host does not satisfy `ICardActuation` and vice versa.
+
+Three properties a caller may rely on:
+
+- **Nothing runs without an approval.** Every function takes an approval carrying
+  `{:by … :reference …}` — **both**, because a reference with no approver cannot be
+  audited and an approver with no reference cannot be tied to what they saw.
+- **Every call is idempotent on a caller-supplied key.** `:idempotency-key` is
+  required and is *not* generated for the caller: only the caller knows whether
+  this is a retry. A retried `issue-card!` must not produce a second live card.
+- **Refusals are data**, not exceptions — a thrown exception loses the provider's
+  reason somewhere up the stack.
+
+`precheck` is the guard an implementation runs **before any outbound call**. A
+provider that reaches the network and then discovers the approval was unnamed has
+already acted.
+
+### Providers must publish their state mapping
+
+`state-mapping-complete?` requires a provider to give **every** lifecycle state a
+provider-side representation, mapping to `nil` the ones it cannot express.
+Folding is forbidden because that is how `:issued` and `:active` become the same
+thing and a card that was never activated starts working.
+
+This is not hypothetical: Stripe Issuing has three card statuses (`active`,
+`inactive`, `canceled`) where this lifecycle has five. A provider must say so —
+see [`kotoba-lang/io-stripe-issuing`](https://github.com/kotoba-lang/io-stripe-issuing).
 
 ## Operator console (UI/UX)
 
