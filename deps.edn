@@ -1,8 +1,29 @@
 {:paths ["src"]
- :deps {io.github.kotoba-lang/html {:local/root "../html"}
-        io.github.kotoba-lang/css  {:local/root "../css"}}
+ ;; Sibling libraries are named by GIT COORDINATE, not :local/root.
+ ;;
+ ;; A library whose :deps use :local/root is only consumable from inside a
+ ;; monorepo checkout: tools.deps resolves "../html" relative to the consumer's
+ ;; gitlibs directory, which does not exist, and the classpath build fails
+ ;; before anything runs. Measured 2026-07-30 on kotoba-lang/esim, which had the
+ ;; same shape and could not be consumed by cloud-itonami-app at all:
+ ;;   Error building classpath. Local lib io.github.kotoba-lang/phone not found:
+ ;;   ~/.gitlibs/libs/io.github.kotoba-lang/esim/phone
+ ;;
+ ;; So :deps carry git coordinates and the :dev alias overrides them to sibling
+ ;; checkouts for monorepo work. CI runs the plain (git) path, which means CI
+ ;; proves this library is still consumable rather than only that it compiles
+ ;; next to its siblings.
+ :deps {io.github.kotoba-lang/html
+        {:git/url "https://github.com/kotoba-lang/html.git"
+         :git/sha "04606d97309fa377a20d18ee123e5db8f59ad127"}
+        io.github.kotoba-lang/css
+        {:git/url "https://github.com/kotoba-lang/css.git"
+         :git/sha "4654260a9b06e3c98bd6e02c877612c0a1f2d7a9"}}
  :aliases
- {:test {:extra-paths ["test"]
+ {:dev {:override-deps
+        {io.github.kotoba-lang/html {:local/root "../html"}
+         io.github.kotoba-lang/css  {:local/root "../css"}}}
+  :test {:extra-paths ["test"]
          :extra-deps {io.github.cognitect-labs/test-runner
                       {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
          :main-opts ["-m" "cognitect.test-runner"]
