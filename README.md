@@ -28,9 +28,9 @@ ClojureScript / SCI / GraalVM.
 | | |
 |---|---|
 | Role | capability |
-| Tests | 29 tests / 163 assertions, all green (`clojure -M:test`) |
+| Tests | 33 tests / 196 assertions, all green (`clojure -M:test`) |
 | Records (PAN / ISO 8583 / authorization) | yes |
-| Issuer-side lifecycle state machine | yes (`kotoba.card.lifecycle`) |
+| Issuer-side lifecycle state machine | yes (`kotoba.card.lifecycle`) — mirrors the issuer governor's own allowlist |
 | Issuer-side host ports | yes (`kotoba.card.ports`) |
 | Acquirer-side ports | no — deliberately, see below |
 | Operator console (UI/UX) | yes |
@@ -60,41 +60,50 @@ human approval is requested. Same posture as
 [`kotoba.esim.lifecycle`](https://github.com/kotoba-lang/esim).
 
 ```
+:intake  (pre-issuance; no lifecycle event leaves it — :card/issue does)
+
 :issued --activate--> :active --block--> :blocked
-   |                     |  ^               |
-   |                     |  +---activate----+      (unblocking IS activation)
-   |                  reissue                      :reissued  (terminal)
-   +---------close-------+---------close-----------> :closed   (terminal)
+   |                     |                   |
+   |                     |    reissue (mints a NEW card reference)
+   |                     |                   |
+   |                     |     +-------------+
+   |                     |     v
+   |                     |  :active
+   +--------close--------+--------close------+---> :closed  (terminal)
 ```
 
-The four events are exactly the vocabulary the issuer side already uses
-(`cloud-itonami-card-issuing`'s `:card/lifecycle` accepts
-`#{:activate :block :reissue :close}`); this namespace adds the reachability the
-issuer side had no answer for and invents no new event names.
+> **This table is not this library's invention — it mirrors the deployed issuer
+> side.** `cardissuing.governor/legal-predecessor` decides which state each event
+> is legal from, and `cardissuing.store/lifecycle!` decides which state it lands
+> in. The reason to extract them here is *not* that the issuer side lacked them
+> (it has enforced this allowlist all along) but that a consent surface must ask
+> the same question **before** requesting human approval, and a second copy of
+> these rules would drift. One table, two readers — so when the governor's table
+> changes, this one must follow, and `lifecycle_test.cljc` transcribes the
+> issuer's two tables verbatim so a divergence fails the suite.
 
 ```clojure
 (require '[kotoba.card.lifecycle :as lc])
 
-(lc/reachable? :blocked :activate)   ; => true  — unblocking is activation
-(lc/reachable? :reissued :close)     ; => false
-(lc/describe :reissued :close)
-;=> "close: refused from reissued (reachable from active, blocked, issued)"
+(lc/reachable? :blocked :activate)   ; => false — unblocking is NOT an activate
+(lc/reachable? :blocked :reissue)    ; => true  — reissue is the recovery path
+(lc/describe :blocked :reissue)
+;=> "reissue: blocked -> active (new card reference)"
 ```
 
-Two rules are decisions rather than transcriptions, and are documented as such:
+Two rules are easy to guess wrong, so they are worth stating:
 
-- **`:activate` is admitted from `:blocked`.** There is no `:unblock` event,
-  because inventing one would add a name the issuer side does not use and would
-  then need translating back at the boundary.
-- **`:close` is refused from `:reissued`.** The reference is already terminal
-  there; closing it again would put two terminal records against one card
-  reference. The successor card is what gets closed.
+- **`:activate` is legal only from `:issued`.** A blocked card does not simply
+  resume; the issuer side's recovery path from `:blocked` is `:reissue`.
+- **`:reissue` is legal only from `:blocked`, lands in `:active`, and mints a new
+  card reference** — `cardissuing.store/lifecycle!` calls
+  `register-card-issuance` with the next sequence for the BIN. The successor is
+  created by the same operation, so `apply-event` reports
+  `:card/mints-successor? true` rather than pretending the caller must issue the
+  replacement separately.
 
 `apply-event` is total, returns data, never throws, and every refusal carries a
-reason a governor can cite. A `:reissue` reports `:card/successor
-:not-created-here` — issuing the replacement is a separate `:card/issue`
-decision, because a reissue that silently minted a new card would hide an
-issuance behind a lifecycle event.
+reason a governor can cite.
 
 ## Issuer-side ports (`kotoba.card.ports`)
 

@@ -66,7 +66,7 @@
 (defn- issuer []
   (->FixtureIssuer
    (atom {:cards {"ref-1" {:card/state :issued}
-                  "ref-2" {:card/state :active}
+                  "ref-2" {:card/state :blocked}
                   "ref-3" {:card/state :closed}}
           :cardholders {"ch-1" {:card/name "Example"}}
           :disputes {}})))
@@ -118,10 +118,16 @@
         (is (nil? (:card/effect r)))))
     (testing "a terminal card refuses everything through the port too"
       (is (not (:card/ok? (ports/apply-lifecycle h "ref-3" :activate)))))
-    (testing "a reissue through the port still declines to create the successor"
+    (testing "a reissue through the port reports the new card reference it mints"
       (let [r (ports/apply-lifecycle h "ref-2" :reissue)]
         (is (:card/ok? r))
-        (is (= :not-created-here (:card/successor r)))))))
+        (is (= :active (:card/to r)))
+        (is (:card/mints-successor? r))))
+    (testing "and a reissue from :active is refused -- only :blocked is legal"
+      (let [h2 (->FixtureIssuer (atom {:cards {"a" {:card/state :active}}}))
+            r (ports/apply-lifecycle h2 "a" :reissue)]
+        (is (not (:card/ok? r)))
+        (is (= [:transition/unreachable] (mapv :card/issue (:card/issues r))))))))
 
 (deftest lookups-return-nil-for-unknown-subjects
   (let [h (issuer)]
