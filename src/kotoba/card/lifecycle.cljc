@@ -8,10 +8,24 @@
   before any human approval is requested. Same posture and shape as
   kotoba.esim.lifecycle.
 
-  The four events are exactly the vocabulary the issuer side already uses
-  (cloud-itonami/cloud-itonami-card-issuing's `:card/lifecycle` accepts
-  #{:activate :block :reissue :close}); this namespace adds the reachability
-  the issuer side had no answer for, and invents no new event names.
+  IMPORTANT -- this table is NOT this library's invention. It mirrors, exactly,
+  the rules the deployed issuer side already enforces:
+
+    cloud-itonami/cloud-itonami-card-issuing
+      cardissuing.governor/legal-predecessor   (which state each event is legal from)
+      cardissuing.store/lifecycle!             (which state each event lands in)
+
+  The reason to extract them here is NOT that the issuer side lacked them -- it
+  has enforced this allowlist all along -- but that a consent surface needs to
+  ask the same question BEFORE requesting human approval, and any second copy of
+  these rules would drift from the governor's. One table, two readers.
+
+  So: when the issuer-side governor changes `legal-predecessor` or
+  `lifecycle!`'s `next-status`, THIS TABLE MUST CHANGE WITH IT. It is a mirror,
+  and a mirror that disagrees with its subject is worse than no mirror -- a
+  pre-check more permissive than the governor waves work through to a human that
+  the governor will then refuse, which is precisely the wasted approval this
+  namespace exists to prevent.
 
   What this namespace decides: structural reachability and terminality. What it
   deliberately does NOT decide: whether an issuer is licensed, whether a
@@ -23,34 +37,46 @@
   (:require [clojure.string :as str]))
 
 (def states
-  "Card states. :issued is a card whose record exists but which cannot yet be
-  used; :reissued is terminal for THIS card reference, superseded by a
-  successor that is a separate issuance."
-  #{:issued :active :blocked :reissued :closed})
+  "Cardholder statuses, mirroring the issuer side's own `:status` values.
+
+  :intake is the pre-issuance record. No LIFECYCLE event leaves it -- a card
+  gets out of :intake by being issued (`:card/issue`), which is a separate
+  operation with its own scrutiny, not a lifecycle transition. Modeling
+  issuance as a lifecycle event here would let it be reached through the
+  lifecycle gate instead of its own."
+  #{:intake :issued :active :blocked :closed})
 
 (def terminal-states
-  "States no event leads out of. :reissued is terminal because the reference has
-  been superseded -- the successor card carries the lifecycle from there."
-  #{:reissued :closed})
+  "States no event leads out of. Only :closed -- note there is no separate
+  'reissued' state: a reissue lands the cardholder back in :active under a NEW
+  card reference (see `events`)."
+  #{:closed})
 
 (def events
-  "Lifecycle events, each declaring the states it is reachable from and the
-  state it lands in.
+  "Lifecycle events: the states each is legal from, and the state it lands in.
+  Mirrors cardissuing.governor/legal-predecessor and
+  cardissuing.store/lifecycle!'s next-status exactly.
 
-  Two readings are recorded here as decisions, not transcriptions:
+  An allowlist, not a denylist -- a future event defaults to illegal until
+  deliberately wired here, the same discipline the issuer-side table states.
 
-  :activate is admitted from :blocked as well as :issued -- that is, unblocking
-  IS activation. The issuer-side vocabulary has no :unblock event, so modeling
-  one here would invent a name the issuer does not use and would then have to be
-  translated back at the boundary.
+  Two consequences worth reading carefully, because both are easy to guess
+  wrong:
 
-  :close is NOT admitted from :reissued. The reference is already terminal
-  there, and closing it again would put two terminal records against one card
-  reference; the successor card is what gets closed."
-  {:activate {:from #{:issued :blocked}          :to :active}
-   :block    {:from #{:active}                   :to :blocked}
-   :reissue  {:from #{:active :blocked}          :to :reissued}
-   :close    {:from #{:issued :active :blocked}  :to :closed}})
+  - :activate is legal ONLY from :issued. Unblocking a blocked card is NOT an
+    activate; the issuer side's recovery path from :blocked is :reissue. A
+    blocked card does not simply resume.
+
+  - :reissue is legal ONLY from :blocked, lands in :active, and MINTS A NEW CARD
+    REFERENCE (cardissuing.store/lifecycle! calls register-card-issuance with
+    the next sequence for the BIN). The successor is created by the same
+    operation -- this is the issuer side's deliberate design, not an oversight,
+    so `apply-event` reports it rather than pretending the caller must issue the
+    replacement separately."
+  {:activate {:from #{:issued}                  :to :active}
+   :block    {:from #{:active}                  :to :blocked}
+   :reissue  {:from #{:blocked}                 :to :active  :mints-successor? true}
+   :close    {:from #{:issued :active :blocked} :to :closed}})
 
 (defn terminal?
   "True when state admits no further event."
@@ -72,6 +98,12 @@
   [state event]
   (when (reachable? state event)
     (get-in events [event :to])))
+
+(defn mints-successor?
+  "True when this event creates a NEW card reference as part of the same
+  operation. Only :reissue does."
+  [event]
+  (boolean (get-in events [event :mints-successor?])))
 
 (defn transition-issues
   "Return a seq of reasons event cannot be applied to state, empty when it can.
@@ -106,10 +138,10 @@
 
   and never throwing.
 
-  A :reissue reports :card/supersedes-reference so the caller can see that the
-  successor card is NOT created here: issuing the replacement is a separate
-  :card/issue decision. A reissue that silently minted a new card would hide an
-  issuance behind a lifecycle event."
+  A :reissue additionally reports :card/mints-successor? true (and echoes
+  :card/supersedes-reference when given), because the issuer side creates the
+  replacement card in the same operation. A caller that treats a reissue as a
+  pure state change will miss the new card reference."
   [state event & {:keys [card-reference]}]
   (let [issues (transition-issues state event)]
     (if (seq issues)
@@ -117,16 +149,17 @@
       (cond-> {:card/ok? true
                :card/from state
                :card/to   (next-state state event)}
-        (= :reissue event)
-        (assoc :card/supersedes-reference card-reference
-               :card/successor :not-created-here)))))
+        (mints-successor? event)
+        (assoc :card/mints-successor? true
+               :card/supersedes-reference card-reference)))))
 
 (defn describe
   "A one-line human-readable rendering of a transition, for an operator log.
   Pure string building; no formatting library."
   [state event]
   (if-let [to (next-state state event)]
-    (str (name event) ": " (name state) " -> " (name to))
+    (str (name event) ": " (name state) " -> " (name to)
+         (when (mints-successor? event) " (new card reference)"))
     (str (name event) ": refused from " (name state)
          " (reachable from "
          (str/join ", " (sort (map name (get-in events [event :from] #{}))))

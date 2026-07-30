@@ -68,8 +68,10 @@
     "Return the card record including its lifecycle state, or nil when unknown.")
   (apply-lifecycle [this card-reference event]
     "Draft a lifecycle transition (`:card/lifecycle`) for one of
-     #{:activate :block :reissue :close}. A :reissue does NOT create the
-     successor card -- that is a separate issue-card decision."))
+     #{:activate :block :reissue :close}. A :reissue is legal only from
+     :blocked, lands in :active, and MINTS A NEW CARD REFERENCE in the same
+     operation -- see kotoba.card.lifecycle, which mirrors the issuer side's
+     own allowlist rather than restating it."))
 
 (defprotocol IAuthorizationDecision
   "Issuer-side real-time authorization decisions.
