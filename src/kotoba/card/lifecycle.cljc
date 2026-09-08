@@ -34,7 +34,7 @@
   transition.
 
   Portable (.cljc) across JVM / ClojureScript / SCI / GraalVM."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 (def states
   "Cardholder statuses, mirroring the issuer side's own `:status` values.

@@ -18,7 +18,7 @@
   tokenization layer must replace them in any real system.
 
   Portable (.cljc) across JVM / ClojureScript / SCI / GraalVM."
-  (:require [clojure.string :as str]))
+  (:require [kotoba.lang.text :as str]))
 
 ;; ---------------------------------------------------------------------------
 ;; PAN — Primary Account Number (ISO/IEC 7812), Luhn checksum (ISO/IEC 7812-1)
