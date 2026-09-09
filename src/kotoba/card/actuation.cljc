@@ -32,7 +32,28 @@
   three where the lifecycle has five) must publish its mapping rather than absorb
   the difference silently -- see `state-mapping-complete?`.
 
-  No credential, endpoint or SDK lives in this library. Portable (.cljc)."
+  No credential, endpoint or SDK lives in this library. Portable (.cljc).
+
+  ## Kotoba migration status: :blocked (measured 2026-09-09)
+
+  This component stays `.cljc`, and the reason is asserted rather than written
+  down: `test/kotoba/card/actuation_kotoba_blocked_probe.cljs`.
+
+  Protocols are not missing from the language -- a protocol whose implementations
+  are in the same compiled graph compiles and RUNS correctly. What is refused is
+  the PORT shape, a method called on a value whose record the module does not
+  statically know (`:kotoba.error/protocol-dispatch`), and that is exactly what
+  the two protocols below are: their implementers live in other repositories on
+  purpose. `lang/surface-status.edn` names the profile
+  `:bounded-closed-world-static-dispatch`.
+
+  The refusal is `:disposition :implemented-partial` -- implementation state, not
+  a permanent design decision -- so this component is NOT redesigned to fit it.
+  The pure half would move today, but moving only that is a decision-only slice,
+  which `q9-migration.edn` v3 forbids (`:decision-only-slices-allowed false`).
+
+  The probe goes RED the day open-world dispatch is admitted. Nobody has to
+  remember."
   (:require [kotoba.card.lifecycle :as lifecycle]))
 
 (def required-approval-keys

@@ -28,7 +28,7 @@ ClojureScript / SCI / GraalVM.
 | | |
 |---|---|
 | Role | capability |
-| Tests | 41 tests / 233 assertions, all green (`clojure -M:test`) |
+| Tests | all green, measured 2026-09-09: 51 tests / 721 assertions (`clojure -M:test`), of which 41 / 233 are the `.cljc` suites alone (`clojure -M:test-pure`) |
 | Records (PAN / ISO 8583 / authorization) | yes |
 | Issuer-side lifecycle state machine | yes (`kotoba.card.lifecycle`) — mirrors the issuer governor's own allowlist |
 | Issuer-side host ports (propose-only) | yes (`kotoba.card.ports`) |
@@ -224,5 +224,25 @@ Apache License 2.0.
 ## Test
 
 ```bash
-clojure -M:test
+clojure -M:test        # everything, including the .kotoba parity suite
+clojure -M:test-pure   # the .cljc suites alone, with no compiler dependency
 ```
+
+### Why `kotoba.card.actuation` is still `.cljc`
+
+`kotoba.card.lifecycle` has moved to `.kotoba` (with a `.cljk` twin, compared by
+artifact). `kotoba.card.actuation` has not, and the reason is asserted rather than
+written down:
+
+```bash
+nbb test/kotoba/card/actuation_kotoba_blocked_probe.cljs
+#   exit 0  still blocked
+#   exit 1  open-world protocol dispatch is admitted -- migrate
+#   exit 2  REFUSED: the control failed, or the refusal was for a different reason
+```
+
+Protocols are not missing from the language -- the probe compiles and RUNS a
+closed-world one. What is refused is the port shape, a method called on a value
+whose record is not statically known, which is what `ICardActuation` and
+`ICardholderActuation` are: their implementers live in other repositories on
+purpose. The probe goes red the day that changes.
