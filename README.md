@@ -28,7 +28,7 @@ ClojureScript / SCI / GraalVM.
 | | |
 |---|---|
 | Role | capability |
-| Tests | 51 tests / 721 assertions, all green (`clojure -M:test`, measured 2026-09-09) |
+| Tests | all green, measured 2026-09-09: 51 tests / 721 assertions (`clojure -M:test`), of which 41 / 233 are the `.cljc` suites alone (`clojure -M:test-pure`) |
 | Records (PAN / ISO 8583 / authorization) | yes |
 | Issuer-side lifecycle state machine | yes (`kotoba.card.lifecycle`) — mirrors the issuer governor's own allowlist |
 | Issuer-side host ports (propose-only) | yes (`kotoba.card.ports`) |
