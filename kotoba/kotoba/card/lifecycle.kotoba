@@ -43,10 +43,11 @@
 ;;   kotoba -M test /abs/kotoba/kotoba/card/lifecycle.kotoba --json
 
 (ns kotoba.card.lifecycle
-  (:export [state? event? terminal? reachable? next-state mints-successor?
+  (:export [state? event? state-count state-at event-count event-at
+            terminal? reachable? next-state mints-successor?
             issue-kind transition-issues apply-event describe
             state-name event-name reachable-from
-            test-states test-events test-reachable test-next-state
+            test-states test-events test-enumeration test-reachable test-next-state
             test-terminal test-issues test-apply test-describe]))
 
 ;; --- the tables -----------------------------------------------------------
@@ -61,6 +62,45 @@
 
 (defn event? [e :keyword] :bool
   (or (= e :activate) (or (= e :block) (or (= e :reissue) (= e :close)))))
+
+;; --- enumeration ------------------------------------------------------------
+;;
+;; `states` and `events` are PUBLIC data in the oracle, and a consumer reads them
+;; as data: `kotoba.card.actuation/state-mapping-complete?` requires a provider to
+;; give every lifecycle STATE a representation, and a provider's own coverage check
+;; compares its event table against every lifecycle EVENT. A guest that exposed
+;; only predicates would force such a consumer to hard-code both sides, and then
+;; its check would compare a constant to itself -- which is not a check.
+;;
+;; So the enumeration is part of this component's surface, in the order the oracle
+;; sorts them (`(sort states)` / `(sort (keys events))`), which the parity test
+;; pins. Measured 2026-09-09: a second Kotoba module can call these across a
+;; `--source-path` boundary and iterate them -- `module-lock` links two roots
+;; (repeat the flag; a colon-joined path fails), and the linked artifact runs.
+;;
+;; `:none` is the out-of-range answer, the same sentinel `next-state` uses for
+;; "there isn't one".
+
+(defn state-count [] :i64 5)
+
+(defn state-at [i :i64] :keyword
+  (cond
+    (= i 0) :active
+    (= i 1) :blocked
+    (= i 2) :closed
+    (= i 3) :intake
+    (= i 4) :issued
+    :else :none))
+
+(defn event-count [] :i64 4)
+
+(defn event-at [i :i64] :keyword
+  (cond
+    (= i 0) :activate
+    (= i 1) :block
+    (= i 2) :close
+    (= i 3) :reissue
+    :else :none))
 
 ;; Only :closed. There is no separate "reissued" state -- a reissue lands back
 ;; in :active under a new card reference.
@@ -241,6 +281,21 @@
 
 ;; The two easy guesses, which the oracle has a test named after: activate is
 ;; NOT legal from :blocked, and reissue is ONLY legal from :blocked.
+;; The enumeration and the predicates must agree in BOTH directions: every index
+;; names something `state?`/`event?` admits, and the count is exactly the number
+;; the predicates admit. A count that was too small would make a consumer's
+;; coverage check pass while missing an event.
+(defn test-enumeration [] :i64
+  (if (and (= (state-count) 5)
+           (and (= (event-count) 4)
+                (and (truth (state? (state-at 0)))
+                     (and (truth (state? (state-at 4)))
+                          (and (= (state-at 5) :none)
+                               (and (truth (event? (event-at 0)))
+                                    (and (truth (event? (event-at 3)))
+                                         (= (event-at 4) :none))))))))
+    1 0))
+
 (defn test-reachable [] :i64
   (if (and (truth (reachable? :issued :activate))
            (and (not (reachable? :blocked :activate))
