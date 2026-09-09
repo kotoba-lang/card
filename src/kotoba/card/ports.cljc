@@ -29,7 +29,18 @@
   Implementations report refusal as data rather than throwing, matching
   kotoba.card.lifecycle/apply-event.
 
-  Portable (.cljc) across JVM / ClojureScript / SCI / GraalVM.")
+  Portable (.cljc) across JVM / ClojureScript / SCI / GraalVM.
+
+  ## Kotoba migration status: :blocked (measured 2026-09-09)
+
+  Same block as kotoba.card.actuation, and more totally: this namespace is five
+  protocol declarations and nothing else. The refusal is that a protocol method
+  cannot be called on a value whose record is not statically known
+  (`:kotoba.error/protocol-dispatch`), which is what every port here is.
+
+  Not re-derived and not separately probed -- the reason is identical and is
+  asserted by `test/kotoba/card/actuation_kotoba_blocked_probe.cljs`. That probe
+  going red unblocks BOTH namespaces.")
 
 (defprotocol ICardholderProvisioning
   "Cardholder account intake, the issuer-side subject record a card hangs off."
