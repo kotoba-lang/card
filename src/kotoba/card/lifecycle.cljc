@@ -33,7 +33,27 @@
   governor and the consent surface and are not expressible as a state
   transition.
 
-  Portable (.cljc) across JVM / ClojureScript / SCI / GraalVM."
+  Portable (.cljc) across JVM / ClojureScript / SCI / GraalVM.
+
+  ## Kotoba guest, 2026-09-09
+
+  `kotoba/kotoba/card/lifecycle.{kotoba,cljk}` is this namespace as a Kotoba
+  component (ADR-q9-whole-component-build-migration). It carries the same table
+  and `test/kotoba/card/lifecycle_kotoba_parity_test.clj` compares EVERY state x
+  event pair against this file -- six states by five events, including the unknown
+  of each -- with a mutation control on the :activate-from-:blocked guess.
+
+  That makes THREE copies of the issuer side's rules: the governor, this mirror,
+  and the guest. The warning above applies to the new one too, and the reason it
+  is tolerable is that each pair has a check against the next: the oracle's own
+  test against the issuer side, and the parity test against the oracle. Adding a
+  copy without a check between it and its subject is what the warning forbids.
+
+  Two renderings differ, because a Kotoba keyword cannot become a string at
+  runtime: the guest answers \"\" from `describe` for an unknown state or event
+  where this file prints the unknown name, and it carries an issue's `:card/from`
+  as the rendered list rather than the set. Neither is reachable through a real
+  transition, and both are asserted in the parity test."
   (:require [kotoba.lang.text :as str]))
 
 (def states
