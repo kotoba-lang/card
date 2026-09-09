@@ -73,6 +73,35 @@
       (is (= (lc/mints-successor? e) (call @kir 'mints-successor? [e]))
           (str "mints-successor? " e)))))
 
+(deftest ^:kotoba-parity the-enumeration-is-the-oracle's-public-data
+  "`states` and `events` are public in the oracle and a consumer reads them AS DATA
+  -- `kotoba.card.actuation/state-mapping-complete?` needs every state, and a
+  provider's coverage check needs every event. So the guest's enumeration has to be
+  exactly those, in the order the oracle sorts them, or a consumer iterating the
+  guest would silently cover less than the oracle does."
+  (when (source-available?)
+    (let [states (vec (sort lc/states))
+          events (vec (sort (keys lc/events)))]
+      (is (= (count states) (call @kir 'state-count [])) "state-count")
+      (is (= (count events) (call @kir 'event-count [])) "event-count")
+      (doseq [[i s] (map-indexed vector states)]
+        (is (= s (call @kir 'state-at [i])) (str "state-at " i)))
+      (doseq [[i e] (map-indexed vector events)]
+        (is (= e (call @kir 'event-at [i])) (str "event-at " i)))
+      ;; Out of range is :none on both ends, so an iterator that runs one past the
+      ;; count gets a sentinel rather than a wrong keyword.
+      (is (= :none (call @kir 'state-at [(count states)])) "state-at past the end")
+      (is (= :none (call @kir 'event-at [(count events)])) "event-at past the end")
+      (is (= :none (call @kir 'state-at [-1])) "state-at below zero")
+      ;; And the enumeration must not disagree with the predicates it shares a
+      ;; component with.
+      (doseq [i (range (count states))]
+        (is (true? (call @kir 'state? [(call @kir 'state-at [i])]))
+            (str "state-at " i " names a state the guest admits")))
+      (doseq [i (range (count events))]
+        (is (true? (call @kir 'event? [(call @kir 'event-at [i])]))
+            (str "event-at " i " names an event the guest admits"))))))
+
 (deftest ^:kotoba-parity every-state-event-pair-agrees
   (when (source-available?)
     (doseq [s all-states, e all-events]
@@ -147,7 +176,16 @@
     (doseq [s all-states]
       (is (= (call @kir 'apply-event [s :close ""])
              (call @cljk-kir 'apply-event [s :close ""]))
-          (str "cljk drifted on apply-event " s)))))
+          (str "cljk drifted on apply-event " s)))
+    (is (= (call @kir 'state-count []) (call @cljk-kir 'state-count []))
+        "cljk drifted on state-count")
+    (is (= (call @kir 'event-count []) (call @cljk-kir 'event-count []))
+        "cljk drifted on event-count")
+    (doseq [i (range -1 6)]
+      (is (= (call @kir 'state-at [i]) (call @cljk-kir 'state-at [i]))
+          (str "cljk drifted on state-at " i))
+      (is (= (call @kir 'event-at [i]) (call @cljk-kir 'event-at [i]))
+          (str "cljk drifted on event-at " i)))))
 
 (deftest ^:kotoba-parity activate-must-not-be-legal-from-blocked
   (when (source-available?)
