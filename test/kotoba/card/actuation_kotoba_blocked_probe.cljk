@@ -62,7 +62,7 @@
 ;; known, this probe goes RED and the migration is unblocked. Nobody has to
 ;; remember.
 ;;
-;;   nbb test/kotoba/card/actuation_kotoba_blocked_probe.cljs
+;;   nbb test/kotoba/card/actuation_kotoba_blocked_probe.cljk
 ;;
 ;; Exit 0 still blocked / 1 unblocked, migrate / 2 REFUSED to report.
 

@@ -39,7 +39,7 @@
 
   `kotoba/kotoba/card/lifecycle.{kotoba,cljk}` is this namespace as a Kotoba
   component (ADR-q9-whole-component-build-migration). It carries the same table
-  and `test/kotoba/card/lifecycle_kotoba_parity_test.clj` compares EVERY state x
+  and `test/kotoba/card/lifecycle_kotoba_parity_test.cljk` compares EVERY state x
   event pair against this file -- six states by five events, including the unknown
   of each -- with a mutation control on the :activate-from-:blocked guess.
 

@@ -235,7 +235,7 @@ artifact). `kotoba.card.actuation` has not, and the reason is asserted rather th
 written down:
 
 ```bash
-nbb test/kotoba/card/actuation_kotoba_blocked_probe.cljs
+nbb test/kotoba/card/actuation_kotoba_blocked_probe.cljk
 #   exit 0  still blocked
 #   exit 1  open-world protocol dispatch is admitted -- migrate
 #   exit 2  REFUSED: the control failed, or the refusal was for a different reason
