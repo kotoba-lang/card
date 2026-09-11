@@ -28,7 +28,7 @@ ClojureScript / SCI / GraalVM.
 | | |
 |---|---|
 | Role | capability |
-| Tests | all green, measured 2026-09-09: 51 tests / 721 assertions (`clojure -M:test`), of which 41 / 233 are the `.cljc` suites alone (`clojure -M:test-pure`) |
+| Tests | all green, measured 2026-09-09: 51 tests / 721 assertions (`kbb -M:test`), of which 41 / 233 are the `.cljc` suites alone (`kbb -M:test-pure`) |
 | Records (PAN / ISO 8583 / authorization) | yes |
 | Issuer-side lifecycle state machine | yes (`kotoba.card.lifecycle`) — mirrors the issuer governor's own allowlist |
 | Issuer-side host ports (propose-only) | yes (`kotoba.card.ports`) |
@@ -224,8 +224,8 @@ Apache License 2.0.
 ## Test
 
 ```bash
-clojure -M:test        # everything, including the .kotoba parity suite
-clojure -M:test-pure   # the .cljc suites alone, with no compiler dependency
+kbb -M:test        # everything, including the .kotoba parity suite
+kbb -M:test-pure   # the .cljc suites alone, with no compiler dependency
 ```
 
 ### Why `kotoba.card.actuation` is still `.cljc`
@@ -235,7 +235,7 @@ artifact). `kotoba.card.actuation` has not, and the reason is asserted rather th
 written down:
 
 ```bash
-nbb test/kotoba/card/actuation_kotoba_blocked_probe.cljk
+kbb --backend sci test/kotoba/card/actuation_kotoba_blocked_probe.cljk
 #   exit 0  still blocked
 #   exit 1  open-world protocol dispatch is admitted -- migrate
 #   exit 2  REFUSED: the control failed, or the refusal was for a different reason

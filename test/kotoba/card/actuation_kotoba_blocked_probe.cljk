@@ -1,4 +1,4 @@
-#!/usr/bin/env nbb
+#!/usr/bin/env kbb
 ;; Why `kotoba.card.actuation` has NOT been migrated to `.kotoba`, asserted
 ;; rather than written down.
 ;;
@@ -62,7 +62,7 @@
 ;; known, this probe goes RED and the migration is unblocked. Nobody has to
 ;; remember.
 ;;
-;;   nbb test/kotoba/card/actuation_kotoba_blocked_probe.cljk
+;;   kbb --backend sci test/kotoba/card/actuation_kotoba_blocked_probe.cljk
 ;;
 ;; Exit 0 still blocked / 1 unblocked, migrate / 2 REFUSED to report.
 
