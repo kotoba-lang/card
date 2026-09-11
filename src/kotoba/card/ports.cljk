@@ -39,7 +39,7 @@
   (`:kotoba.error/protocol-dispatch`), which is what every port here is.
 
   Not re-derived and not separately probed -- the reason is identical and is
-  asserted by `test/kotoba/card/actuation_kotoba_blocked_probe.cljs`. That probe
+  asserted by `test/kotoba/card/actuation_kotoba_blocked_probe.cljk`. That probe
   going red unblocks BOTH namespaces.")
 
 (defprotocol ICardholderProvisioning

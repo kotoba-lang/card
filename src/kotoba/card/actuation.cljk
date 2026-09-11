@@ -37,7 +37,7 @@
   ## Kotoba migration status: :blocked (measured 2026-09-09)
 
   This component stays `.cljc`, and the reason is asserted rather than written
-  down: `test/kotoba/card/actuation_kotoba_blocked_probe.cljs`.
+  down: `test/kotoba/card/actuation_kotoba_blocked_probe.cljk`.
 
   Protocols are not missing from the language -- a protocol whose implementations
   are in the same compiled graph compiles and RUNS correctly. What is refused is
