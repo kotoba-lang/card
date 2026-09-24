@@ -2,7 +2,7 @@
   "Contract test for the issuer-side ports: that a host can satisfy them, that
   the protocol split is real rather than cosmetic, and that the propose-only
   posture survives an implementation."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [kotoba.card :as card]
             [kotoba.card.lifecycle :as lc]
             [kotoba.card.ports :as ports]))
