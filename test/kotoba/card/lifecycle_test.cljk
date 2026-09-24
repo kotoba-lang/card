@@ -7,7 +7,7 @@
       cardissuing.store/lifecycle!            -> which state each event lands in
 
   If those change, these tests should fail and this table should follow them."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [kotoba.card.lifecycle :as lc]))
 
 ;; Transcribed verbatim from cardissuing.governor/legal-predecessor.

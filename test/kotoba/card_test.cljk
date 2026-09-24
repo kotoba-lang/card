@@ -1,5 +1,5 @@
 (ns kotoba.card-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [kotoba.card :as card]))
 
 ;; A Visa test PAN with a valid Luhn checksum.

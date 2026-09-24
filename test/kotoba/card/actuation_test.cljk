@@ -1,6 +1,6 @@
 (ns kotoba.card.actuation-test
   "The guards a provider must not be able to skip, tested without a provider."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [kotoba.card.actuation :as act]
             [kotoba.card.lifecycle :as lifecycle]
             [kotoba.card.ports :as ports]))
