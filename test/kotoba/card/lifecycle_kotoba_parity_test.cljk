@@ -17,7 +17,7 @@
 ;; which is the wasted approval this namespace exists to prevent.
 
 (ns kotoba.card.lifecycle-kotoba-parity-test
-  (:require [clojure.java.io :as io]
+  (:require [kotoba.io :as io]
             [kotoba.lang.text :as str]
             [kotoba.test :refer [deftest is]]
             [kotoba.compiler.core :as compiler]
@@ -31,7 +31,7 @@
   (io/file (System/getProperty "user.dir") "kotoba" "kotoba" "card" "lifecycle.cljk"))
 
 (defn- source-available? []
-  (let [k? (.exists kotoba-file) c? (.exists cljk-file)]
+  (let [k? (io/exists? kotoba-file) c? (io/exists? cljk-file)]
     (is k? (str "kotoba object not found at " kotoba-file))
     (is c? (str "cljk object not found at " cljk-file))
     (and k? c?)))
